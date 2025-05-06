@@ -18,18 +18,19 @@ class Camera {
         this.y = y;
     }
 }
+
+class Line {
+    constructor(i, points, color) {
+        this.i = i;
+        this.points = points;
+        this.color = color;
+    }
+}
 const camera = new Camera(canvas.width / 2, canvas.height / 2);
 
 // constants
 let zoom = 20;
-
-// example
-let points = [];
-// only 20 points for now
-for (let i = 0; i < 200; i++) {
-    let x = (i - 100) / (devicePixelRatio * 2);
-    points[i] = new Point(x, basic_line(x));
-}
+let colors = ["#29ABE2", "#DD5193", "#8152A2", "#E6842A", "#13A177", "#B40F20"]
 
 function draw_loop(delta) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -44,31 +45,53 @@ function draw_loop(delta) {
     ctx.strokeStyle = "#181818";
     ctx.globalAlpha = 0.1;
 
-    for(let i = 0; i < canvas.width; i += ((innerHeight / 32) * devicePixelRatio)) {
+    for (let i = 0; i < canvas.width; i += ((innerHeight / 32) * devicePixelRatio)) {
         ctx.moveTo(i, 0);
         ctx.lineTo(i, canvas.height);
     }
 
-    for(let i = 0; i < canvas.height; i += ((innerHeight / 32) * devicePixelRatio)) {
+    for (let i = 0; i < canvas.height; i += ((innerHeight / 32) * devicePixelRatio)) {
         ctx.moveTo(0, i);
         ctx.lineTo(canvas.width, i);
     }
-    
+
     ctx.stroke();
     ctx.restore();
+    /*
+        ctx.beginPath();
+        ctx.strokeStyle = "#181818";
+        ctx.lineWidth = 4;
+        ////ctx.moveTo(points[0].x * 20 + canvas.width / 2, points[0].y * 20 + canvas.height / 2);
+        points.forEach(point => {
+            point.points.forEach(coord => {
+        //    // translate point to fit within window
+            let t_x = coord.x * zoom + canvas.width / 2;
+            let t_y = canvas.height / 2 - coord.y * zoom;
+    
+            ctx.lineTo(t_x, t_y);
+            })
+        });
+        ctx.stroke();
+        */
 
-    ctx.beginPath();
-    ctx.strokeStyle = "#181818";
-    ctx.lineWidth = 4;
-    //ctx.moveTo(points[0].x * 20 + canvas.width / 2, points[0].y * 20 + canvas.height / 2);
-    points.forEach(point => {
-        // translate point to fit within window
-        let t_x = point.x * zoom + canvas.width / 2;
-        let t_y = canvas.height / 2 - point.y * zoom;
+    [...document.getElementsByClassName("equations")].forEach(equation => {
+        if (equation.line && equation.line.points) {
+            ctx.beginPath();
+            ctx.strokeStyle = equation.line.color;
+            ctx.lineWidth = 4;
+            ctx.lineCap = "round";
 
-        ctx.lineTo(t_x, t_y);
-    });
-    ctx.stroke();
+            equation.line.points.forEach(coord => {
+                // translate point to fit within window
+                let t_x = coord.x * zoom + canvas.width / 2;
+                let t_y = canvas.height / 2 - coord.y * zoom;
+
+                ctx.lineTo(t_x, t_y);
+            })
+
+            ctx.stroke();
+        }
+    })
 
     ctx.restore()
 }
@@ -112,7 +135,7 @@ window.addEventListener("wheel", (e) => {
 function update_zoom() {
     zoom_vel *= zoom_damp;
     zoom *= 1 + zoom_vel;
-    
+
     requestAnimationFrame(update_zoom);
 }
 
@@ -124,7 +147,7 @@ let cam_vel_x = 0;
 let cam_vel_y = 0;
 let cam_damp = 0.8;
 
-window.addEventListener("mousedown", (e) => {
+canvas.addEventListener("mousedown", (e) => {
     let start_x = e.clientX;
     let start_y = e.clientY;
 
@@ -141,17 +164,58 @@ window.addEventListener("mousedown", (e) => {
     });
 });
 
-function updateCamera() {
+// i like rust snake case
+function update_camera() {
     cam_vel_x = (target_x - camera.x) * 0.175;
     cam_vel_y = (target_y - camera.y) * 0.175;
-    
+
     cam_vel_x *= cam_damp;
     cam_vel_y *= cam_damp;
-    
+
     camera.x += cam_vel_x;
     camera.y += cam_vel_y;
-    
-    requestAnimationFrame(updateCamera);
+
+    requestAnimationFrame(update_camera);
 }
 
-updateCamera();
+update_camera();
+
+// capture equation field(s) (one for now)
+function update_equations(elms) {
+    [...elms].forEach((equation, i) => {
+        equation.line = new Line();
+        equation.line.color = colors[i % colors.length]; //`rgb(${[1,2,3].map(x=>Math.random()*256|0)})`;
+
+        equation.addEventListener("input", (e) => {
+            //points.splice(points.indexOf(equation.line), 1);
+
+            let points_l = [];
+            let n_points = 200;
+            let range = 10;
+
+            for (let i = 0; i < n_points; i++) {
+                let x = (i / n_points * devicePixelRatio * range) - range / 2;
+                let res = math.compile(equation.value).evaluate({ x: x });
+
+                points_l.push(new Point(x, res));
+            }
+
+            equation.line.points = points_l;
+
+            //points.push(equation.line);
+        });
+    })
+}
+
+update_equations(document.getElementsByClassName("equations"));
+
+// add equation fields
+document.getElementById("add-equation").addEventListener("click", () => {
+    let elm = document.createElement("input");
+    elm.type = "text";
+    elm.className = "equations";
+
+    document.getElementById("panel").appendChild(elm);
+
+    update_equations([elm]);
+})
