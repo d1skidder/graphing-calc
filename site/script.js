@@ -30,21 +30,36 @@ const camera = new Camera(canvas.width / 2, canvas.height / 2);
 
 // constants
 let zoom = 20;
-let colors = ["#29ABE2", "#DD5193", "#8152A2", "#E6842A", "#13A177", "#B40F20"]
+const colors = ["#29ABE2", "#DD5193", "#8152A2", "#E6842A", "#13A177", "#B40F20"];
+
+// variables
+let dark_mode = false;
 
 function draw_loop(delta) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.save();
-    ctx.translate(camera.x, camera.y);
+    if(dark_mode) {
+        ctx.beginPath();
+        ctx.fillStyle = "#222222";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    /*
+    ctx.beginPath();
+    ctx.fillStyle = "red";
+    ctx.arc(camera.x, camera.y, 30, 0, Math.PI * 2);
+    ctx.fill()
+*/
+
 
     // render grid lines
     ctx.save();
     ctx.beginPath();
     ctx.lineWidth = 2;
-    ctx.strokeStyle = "#181818";
+    ctx.strokeStyle = (dark_mode ? "rgba(255, 255, 255, 0.5)" : "#181818");
     ctx.globalAlpha = 0.1;
 
+    
     for (let i = 0; i < canvas.width; i += ((innerHeight / 32) * devicePixelRatio)) {
         ctx.moveTo(i, 0);
         ctx.lineTo(i, canvas.height);
@@ -54,9 +69,34 @@ function draw_loop(delta) {
         ctx.moveTo(0, i);
         ctx.lineTo(canvas.width, i);
     }
+        
+
+    /*for (let i = -camera.x; i < camera.x; i += ((innerHeight / 32) * devicePixelRatio)) {
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, camera.x);
+    }*/
+
+
+    /*
+    cool 3d effect
+
+    for(let i = -camera.x; i < camera.x; i += 12) {
+        ctx.moveTo(i * zoom, 0);
+        ctx.lineTo(i, innerWidth * zoom)
+    }
+
+    for(let i = -camera.y; i < camera.y; i += 12) {
+        ctx.moveTo(0, i * zoom);
+        ctx.lineTo(innerHeight * zoom, i)
+    }
+        */
 
     ctx.stroke();
     ctx.restore();
+
+    ctx.save();
+    ctx.translate(camera.x, camera.y);
+
     /*
         ctx.beginPath();
         ctx.strokeStyle = "#181818";
@@ -74,32 +114,32 @@ function draw_loop(delta) {
         ctx.stroke();
         */
 
-    [...document.getElementsByClassName("equations")].forEach(equation => {
-        if (equation.line && equation.line.points) {
+    for(const equation of [...document.getElementsByClassName("equations")]) {
+        if (equation.line?.points) {
             ctx.beginPath();
             ctx.strokeStyle = equation.line.color;
             ctx.lineWidth = 4;
             ctx.lineCap = "round";
 
-            equation.line.points.forEach(coord => {
+            for(const coord of equation.line.points) {
                 // translate point to fit within window
-                let t_x = coord.x * zoom + canvas.width / 2;
-                let t_y = canvas.height / 2 - coord.y * zoom;
+                const t_x = coord.x * zoom + canvas.width / 2;
+                const t_y = canvas.height / 2 - coord.y * zoom;
 
                 ctx.lineTo(t_x, t_y);
-            })
+            }
 
             ctx.stroke();
         }
-    })
+    }
 
     ctx.restore()
 }
 
 let old_time = performance.now();
 function draw_event() {
-    let now = performance.now();
-    let delta = now - old_time;
+    const now = performance.now();
+    const delta = now - old_time;
     old_time = now;
 
     draw_loop(delta);
@@ -123,7 +163,7 @@ window.addEventListener("resize", () => {
     canvas.height = window.innerHeight * devicePixelRatio;
 });
 
-let target_zoom = zoom;
+const target_zoom = zoom;
 let zoom_vel = 0;
 const zoom_speed = 0.0025;
 const zoom_damp = 0.85;
@@ -139,13 +179,17 @@ function update_zoom() {
     requestAnimationFrame(update_zoom);
 }
 
+setInterval(() => {
+    console.log(camera.x, camera.y);
+}, 1e2)
+
 update_zoom();
 
 let target_x = 0;
 let target_y = 0;
 let cam_vel_x = 0;
 let cam_vel_y = 0;
-let cam_damp = 0.8;
+const cam_damp = 0.8;
 
 canvas.addEventListener("mousedown", (e) => {
     let start_x = e.clientX;
@@ -189,13 +233,13 @@ function update_equations(elms) {
         equation.addEventListener("input", (e) => {
             //points.splice(points.indexOf(equation.line), 1);
 
-            let points_l = [];
-            let n_points = 200;
-            let range = 10;
+            const points_l = [];
+            const n_points = canvas.width * zoom;
+            const range = canvas.width / zoom;
 
             for (let i = 0; i < n_points; i++) {
-                let x = (i / n_points * devicePixelRatio * range) - range / 2;
-                let res = math.compile(equation.value).evaluate({ x: x });
+                const x = (i / n_points * devicePixelRatio * range) - range / 2;
+                const res = math.compile(equation.value).evaluate({ x: x });
 
                 points_l.push(new Point(x, res));
             }
@@ -211,11 +255,38 @@ update_equations(document.getElementsByClassName("equations"));
 
 // add equation fields
 document.getElementById("add-equation").addEventListener("click", () => {
-    let elm = document.createElement("input");
+    const elm = document.createElement("input");
     elm.type = "text";
     elm.className = "equations";
+    
+    if(dark_mode) {
+        elm.classList.add("equations-dark")
+    }
 
     document.getElementById("panel").appendChild(elm);
 
     update_equations([elm]);
+})
+
+document.getElementById("dark-mode").addEventListener("click", (e) => {
+    dark_mode = !dark_mode;
+
+    if(dark_mode) {
+        document.getElementById("panel").classList.add("panel-dark");
+        document.getElementById("title").classList.add("title-dark");
+        document.getElementById("add-equation").classList.add("add-equation-dark");
+
+        for(const elm of [...document.getElementsByClassName("equations")]) {
+            console.log(elm, elm.classList)
+            elm.classList.add("equations-dark");
+        }
+    } else {
+        document.getElementById("panel").classList.remove("panel-dark");
+        document.getElementById("title").classList.remove("title-dark");
+        document.getElementById("add-equation").classList.remove("add-equation-dark");
+
+        for(const elm of [...document.getElementsByClassName("equations")]) {
+            elm.classList.remove("equations-dark");
+        }
+    }
 })
