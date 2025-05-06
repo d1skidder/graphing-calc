@@ -2,7 +2,7 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 function basic_line(x) {
-    return Math.tan(x);
+    return Math.sin(x);
 }
 
 class Point {
@@ -11,6 +11,14 @@ class Point {
         this.y = y;
     }
 }
+
+class Camera {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+}
+const camera = new Camera(canvas.width / 2, canvas.height / 2);
 
 // constants
 let zoom = 20;
@@ -24,18 +32,23 @@ for (let i = 0; i < 200; i++) {
 }
 
 function draw_loop(delta) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+ctx.save();
+    ctx.translate(camera.x, camera.y);
+
     // render grid lines
     ctx.save();
     ctx.beginPath();
     ctx.strokeStyle = "#000";
-    ctx.globalAlpha = 0.2;
+    ctx.globalAlpha = 0.1;
 
-    for(let i = 0; i < canvas.width; i += (canvas.height / 32) * devicePixelRatio) {
+    for(let i = 0; i < canvas.width; i += ((canvas.height / 32) * devicePixelRatio)) {
         ctx.moveTo(i, 0);
         ctx.lineTo(i, canvas.height);
     }
 
-    for(let i = 0; i < canvas.height * 1.5; i += (canvas.height / 32) * devicePixelRatio) {
+    for(let i = 0; i < canvas.height; i += ((canvas.height / 32) * devicePixelRatio)) {
         ctx.moveTo(0, i);
         ctx.lineTo(canvas.width, i);
     }
@@ -55,6 +68,8 @@ function draw_loop(delta) {
         ctx.lineTo(t_x, t_y);
     });
     ctx.stroke();
+
+    ctx.restore()
 }
 
 let old_time = performance.now();
@@ -64,9 +79,11 @@ function draw_event() {
     old_time = now;
 
     draw_loop(delta);
+
+    requestAnimationFrame(draw_event);
 }
 
-requestAnimationFrame(draw_event);
+draw_event();
 
 
 // fix canvas
@@ -83,10 +100,28 @@ window.addEventListener("resize", () => {
 });
 
 window.addEventListener("wheel", (e) => {
-    console.log(e.deltaY)
     if(e.deltaY < 0) {
-        zoom -= 0.05;
+        zoom += e.deltaY / 100;
     } else if (e.deltaY > 0) {
-        zoom += 0.05;
+        zoom += e.deltaY / 100;
     }
+
+    //console.log(~~zoom, ~~e.deltaY)
+})
+
+window.addEventListener("mousedown", (e) => {
+    let startX = e.clientX;
+    let startY = e.clientY;
+
+    function mouseMoveHandler(e) {
+        camera.x += (e.clientX - startX);
+        camera.y += (e.clientY - startY);
+        startX = e.clientX;
+        startY = e.clientY;
+    }
+
+    window.addEventListener('mousemove', mouseMoveHandler);
+    window.addEventListener('mouseup', () => {
+        window.removeEventListener('mousemove', mouseMoveHandler);
+    });
 })
