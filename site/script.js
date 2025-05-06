@@ -34,31 +34,32 @@ for (let i = 0; i < 200; i++) {
 function draw_loop(delta) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-ctx.save();
+    ctx.save();
     ctx.translate(camera.x, camera.y);
 
     // render grid lines
     ctx.save();
     ctx.beginPath();
-    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#181818";
     ctx.globalAlpha = 0.1;
 
-    for(let i = 0; i < canvas.width; i += ((canvas.height / 32) * devicePixelRatio)) {
+    for(let i = 0; i < canvas.width; i += ((innerHeight / 32) * devicePixelRatio)) {
         ctx.moveTo(i, 0);
         ctx.lineTo(i, canvas.height);
     }
 
-    for(let i = 0; i < canvas.height; i += ((canvas.height / 32) * devicePixelRatio)) {
+    for(let i = 0; i < canvas.height; i += ((innerHeight / 32) * devicePixelRatio)) {
         ctx.moveTo(0, i);
         ctx.lineTo(canvas.width, i);
     }
-
+    
     ctx.stroke();
     ctx.restore();
 
     ctx.beginPath();
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#181818";
+    ctx.lineWidth = 4;
     //ctx.moveTo(points[0].x * 20 + canvas.width / 2, points[0].y * 20 + canvas.height / 2);
     points.forEach(point => {
         // translate point to fit within window
@@ -99,29 +100,58 @@ window.addEventListener("resize", () => {
     canvas.height = window.innerHeight * devicePixelRatio;
 });
 
-window.addEventListener("wheel", (e) => {
-    if(e.deltaY < 0) {
-        zoom += e.deltaY / 100;
-    } else if (e.deltaY > 0) {
-        zoom += e.deltaY / 100;
-    }
+let target_zoom = zoom;
+let zoom_vel = 0;
+const zoom_speed = 0.0025;
+const zoom_damp = 0.85;
 
-    //console.log(~~zoom, ~~e.deltaY)
-})
+window.addEventListener("wheel", (e) => {
+    zoom_vel += -e.deltaY * zoom_speed;
+});
+
+function update_zoom() {
+    zoom_vel *= zoom_damp;
+    zoom *= 1 + zoom_vel;
+    
+    requestAnimationFrame(update_zoom);
+}
+
+update_zoom();
+
+let target_x = 0;
+let target_y = 0;
+let cam_vel_x = 0;
+let cam_vel_y = 0;
+let cam_damp = 0.8;
 
 window.addEventListener("mousedown", (e) => {
-    let startX = e.clientX;
-    let startY = e.clientY;
+    let start_x = e.clientX;
+    let start_y = e.clientY;
 
     function mouseMoveHandler(e) {
-        camera.x += (e.clientX - startX);
-        camera.y += (e.clientY - startY);
-        startX = e.clientX;
-        startY = e.clientY;
+        target_x += (e.clientX - start_x);
+        target_y += (e.clientY - start_y);
+        start_x = e.clientX;
+        start_y = e.clientY;
     }
 
     window.addEventListener('mousemove', mouseMoveHandler);
     window.addEventListener('mouseup', () => {
         window.removeEventListener('mousemove', mouseMoveHandler);
     });
-})
+});
+
+function updateCamera() {
+    cam_vel_x = (target_x - camera.x) * 0.175;
+    cam_vel_y = (target_y - camera.y) * 0.175;
+    
+    cam_vel_x *= cam_damp;
+    cam_vel_y *= cam_damp;
+    
+    camera.x += cam_vel_x;
+    camera.y += cam_vel_y;
+    
+    requestAnimationFrame(updateCamera);
+}
+
+updateCamera();
