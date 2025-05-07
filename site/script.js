@@ -1,10 +1,6 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-function basic_line(x) {
-    return Math.sin(x);
-}
-
 class Point {
     constructor(x, y) {
         this.x = x;
@@ -230,18 +226,30 @@ function update_equations(elms) {
         equation.line = new Line();
         equation.line.color = colors[i % colors.length]; //`rgb(${[1,2,3].map(x=>Math.random()*256|0)})`;
 
-        equation.addEventListener("input", (e) => {
+        equation.addEventListener("input", () => {
             //points.splice(points.indexOf(equation.line), 1);
 
             const points_l = [];
-            const n_points = canvas.width * zoom;
+            const n_points = canvas.width * devicePixelRatio;
             const range = canvas.width / zoom;
 
-            for (let i = 0; i < n_points; i++) {
-                const x = (i / n_points * devicePixelRatio * range) - range / 2;
-                const res = math.compile(equation.value).evaluate({ x: x });
+            try {
+                if (equation.value.includes("x=")) {
+                    const x_val = Number.parseFloat(equation.value.split("=")[1]);
+                    for (let i = 0; i < n_points; i++) {
+                        const y = (i / n_points * canvas.height * devicePixelRatio / zoom) - (canvas.height / (2 * zoom));
+                        points_l.push(new Point(x_val, y));
+                    }
+                } else {
+                    for (let i = 0; i < n_points; i++) {
+                        const x = (i / n_points * range) - range / 2;
+                        const res = math.compile(equation.value).evaluate({ x: x });
 
-                points_l.push(new Point(x, res));
+                        points_l.push(new Point(x, res));
+                    }
+                }
+            } catch (err) {
+                console.error(`error ${err}`);
             }
 
             equation.line.points = points_l;
